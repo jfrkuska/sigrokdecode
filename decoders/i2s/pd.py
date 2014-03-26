@@ -47,6 +47,12 @@ class Decoder(srd.Decoder):
         {'id': 'ws', 'name': 'WS', 'desc': 'Word select line'},
         {'id': 'sd', 'name': 'SD', 'desc': 'Serial data line'},
     )
+    options = (
+	{
+         'id' : 'ws_polarity', 'desc' : 'Word Select Polarity', 
+	 'default' : 'normal', 'values' : ('normal', 'inverted')
+    	},
+    )
     annotations = (
         ('left', 'Left channel'),
         ('right', 'Right channel'),
@@ -157,9 +163,15 @@ class Decoder(srd.Decoder):
                 self.samplesreceived += 1
 
                 idx = 0 if self.oldws else 1
-                c1 = 'Left channel' if self.oldws else 'Right channel'
-                c2 = 'Left' if self.oldws else 'Right'
-                c3 = 'L' if self.oldws else 'R'
+                if self.options['ws_polarity'] == 'normal':
+                    c1 = 'Right channel' if self.oldws else 'Left channel'
+                    c2 = 'Right' if self.oldws else 'Left'
+                    c3 = 'R' if self.oldws else 'L'
+                else:
+                    c1 = 'Left channel' if self.oldws else 'Right channel'
+                    c2 = 'Left' if self.oldws else 'Right'
+                    c3 = 'L' if self.oldws else 'R'
+                
                 v = '%08x' % self.data
                 self.putpb(['DATA', [c3, self.data]])
                 self.putb([idx, ['%s: %s' % (c1, v), '%s: %s' % (c2, v),
