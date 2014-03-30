@@ -52,6 +52,10 @@ class Decoder(srd.Decoder):
          'id' : 'ws_polarity', 'desc' : 'Word Select Polarity', 
 	 'default' : 'normal', 'values' : ('normal', 'inverted')
     	},
+        {
+         'id' : 'frame_start', 'desc' : 'Selects the start of a frame',
+         'default' : 'normal', 'values' : ('normal', 'early')
+        },
     )
     annotations = (
         ('left', 'Left channel'),
@@ -68,7 +72,8 @@ class Decoder(srd.Decoder):
         self.oldws = 1
         self.bitcount = 0
         self.data = 0
-        self.samplesreceived = 0
+        self.olddata = 0
+	self.samplesreceived = 0
         self.first_sample = None
         self.start_sample = None
         self.wordlength = -1
@@ -151,7 +156,9 @@ class Decoder(srd.Decoder):
 
             # This was not the LSB unless WS has flipped.
             if ws == self.oldws:
-                continue
+		self.olddata = self.data
+                self.oldbitcount = self.bitcount 
+	        continue
 
             # Only submit the sample, if we received the beginning of it.
             if self.start_sample != None:
@@ -172,18 +179,27 @@ class Decoder(srd.Decoder):
                     c2 = 'Left' if self.oldws else 'Right'
                     c3 = 'L' if self.oldws else 'R'
                 
-                v = '%08x' % self.data
-                self.putpb(['DATA', [c3, self.data]])
+                if self.options['frame_start'] == 'normal':
+			v = '%08x' % self.data
+                        count = self.bitcount
+                else:
+			v = '%08x' % self.olddata
+                        count = self.oldbitcout
+
+		self.olddata = self.data
+                self.oldcount = self.count
+
+		self.putpb(['DATA', [c3, self.data]])
                 self.putb([idx, ['%s: %s' % (c1, v), '%s: %s' % (c2, v),
                                  '%s: %s' % (c3, v), c3]])
                 self.putbin((0, self.wav_sample(self.data)))
-
+            
                 # Check that the data word was the correct length.
-                if self.wordlength != -1 and self.wordlength != self.bitcount:
+                if self.wordlength != -1 and self.wordlength != count:
                     self.putb([2, ['Received %d-bit word, expected %d-bit '
-                                   'word' % (self.bitcount, self.wordlength)]])
+                                   'word' % (count, self.wordlength)]])
 
-                self.wordlength = self.bitcount
+                self.wordlength = count
 
             # Reset decoder state.
             self.data = 0
